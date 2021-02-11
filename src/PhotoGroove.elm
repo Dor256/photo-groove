@@ -1,4 +1,4 @@
-module PhotoGroove exposing (main, update)
+port module PhotoGroove exposing (Model, Photo, main, update, photoDecoder, Msg(..), initialModel, view)
 
 import Browser
 import Html exposing (..)
@@ -15,6 +15,16 @@ type ThumbnailSize
   | Medium
   | Large
 
+
+port setFilters : FilterOptions -> Cmd msg
+
+port activityChanges : (String -> msg) -> Sub msg
+
+type alias FilterOptions =
+  { url : String
+  , filters : List { name : String, amount : Float }
+  }
+
 type alias Photo =
   { url : String
   , size : Int
@@ -29,6 +39,7 @@ type Status
 
 type alias Model =
   { status : Status
+  , activity : String
   , chosenSize : ThumbnailSize
   , hue : Int
   , ripple : Int
@@ -38,6 +49,7 @@ type alias Model =
 initialModel : Model
 initialModel =
   { status = Loading
+  , activity = ""
   , chosenSize = Medium
   , hue = 0
   , ripple = 0
@@ -65,7 +77,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
   case msg of
     ClickedPhoto url ->
-        ( { model | status = selectUrl url model.status }, Cmd.none )
+       applyFilters { model | status = selectUrl url model.status }
     
     ClickedSurpriseMe ->
         case model.status of
@@ -88,12 +100,24 @@ update msg model =
         ( { model | chosenSize = size }, Cmd.none )
 
     GotRandomPhoto photo ->
-        ( { model | status = selectUrl photo.url model.status }, Cmd.none )
+        applyFilters { model | status = selectUrl photo.url model.status }
+
+    GotActivity activity ->
+        ( { model | activity = activity }, Cmd.none )
 
     GotPhotos (Ok photos) ->
         case photos of
-          (firstPhoto :: _) ->
-            ( { model | status = Loaded photos firstPhoto.url }, Cmd.none )
+          first :: rest ->
+            applyFilters
+              { model 
+                  | status =
+                      case List.head photos of 
+                          Just photo -> 
+                            Loaded photos photo.url
+                            
+                          Nothing ->
+                            Loaded [] ""
+              }
           
           [] ->
             ( { model | status = Errored "0 photos found" }, Cmd.none )
@@ -102,13 +126,37 @@ update msg model =
         ( { model | status = Errored "Server error!" } , Cmd.none )
 
     SlidHue hue ->
-        ( { model | hue = hue }, Cmd.none )
+        applyFilters { model | hue = hue }
 
     SlidRipple ripple ->
-        ( { model | ripple = ripple }, Cmd.none )
+        applyFilters { model | ripple = ripple }
 
     SlidNoise noise ->
-        ( { model | noise = noise }, Cmd.none )
+        applyFilters { model | noise = noise }
+
+
+applyFilters : Model -> ( Model, Cmd Msg )
+applyFilters model =
+  case model.status of
+    Loaded photos selectedUrl ->
+      let
+        filters =
+          [ { name = "Hue", amount = toFloat model.hue / 11 }
+          , { name = "Ripple", amount = toFloat model.ripple / 11 } 
+          , { name = "Noise", amount = toFloat model.noise / 11 }
+          ]
+        
+        url =
+          urlPrefix ++ "large/" ++ selectedUrl
+
+      in
+      ( model, setFilters { url = url, filters = filters } )
+    
+    Loading ->
+      ( model, Cmd.none )
+
+    Errored errorMessage ->
+      ( model, Cmd.none )
 
 
 selectUrl : String -> Status -> Status
@@ -134,6 +182,7 @@ type Msg
   | ClickedSize ThumbnailSize
   | ClickedSurpriseMe
   | GotRandomPhoto Photo
+  | GotActivity String
   | GotPhotos (Result Http.Error (List Photo))
   | SlidHue Int
   | SlidRipple Int
@@ -145,36 +194,30 @@ view model =
   div [ class "content" ] <|
     case model.status of
         Loaded photos selectedUrl ->
-          photoList photos selectedUrl model
+          [ h1 [] [ text "Photo Groove" ]
+          , button
+              [ onClick ClickedSurpriseMe ]
+              [ text "Surprise Me!" ]
+          , div [ class "activity" ] [ text model.activity ]
+          , div [ class "filters" ]
+                [ imageFilter SlidHue "Hue" model.hue
+                , imageFilter SlidRipple "Ripple" model.ripple
+                , imageFilter SlidNoise "Noise" model.noise
+                ]
+          , h3 [] [ text "Thumbnal Size:" ]
+          , div [ id "choose-size" ] <|
+              List.map sizeChooser [ Small, Medium, Large ]
+          , div [ id "thumbnails", class (sizeToClass model.chosenSize) ] <|
+              List.map (thumbnail selectedUrl) photos
+          , canvas
+              [ id "main-canvas", class "large" ] [] 
+          ]
 
         Loading ->
           []
 
         Errored errorMessage ->
-          [ text ("Error: " ++ errorMessage) ]
-
-photoList : List Photo -> String -> Model -> List (Html Msg)
-photoList photos selectedUrl model =
-  [ h1 [] [ text "Photo Groove" ]
-      , button
-          [ onClick ClickedSurpriseMe ]
-          [ text "Surprise Me!" ]
-      , div [ class "filters" ]
-            [ imageFilter SlidHue "Hue" model.hue
-            , imageFilter SlidRipple "Ripple" model.ripple
-            , imageFilter SlidNoise "Noise" model.noise
-            ]
-      , h3 [] [ text "Thumbnal Size:" ]
-      , div [ id "choose-size" ] <|
-          List.map sizeChooser [ Small, Medium, Large ]
-      , div [ id "thumbnails", class (sizeToClass model.chosenSize) ] <|
-          List.map (thumbnail selectedUrl) photos
-      , img
-          [ class "large" 
-          , src (urlPrefix ++ "large/" ++ selectedUrl)
-          ]
-          []
-      ]    
+          [ text ("Error: " ++ errorMessage) ] 
 
 thumbnail : String -> Photo -> Html Msg
 thumbnail selectedUrl image =
@@ -243,11 +286,25 @@ onSlide toMsg =
     |> Decode.map toMsg
     |> on "slide"
 
-main : Program () Model Msg
+main : Program Float Model Msg
 main =
   Browser.element
-    { init = \_ -> ( initialModel, fetchPhotos ) 
+    { init = init
     , view = view
     , update = update
-    , subscriptions = \_ -> Sub.none
+    , subscriptions = subscriptions
     }
+
+
+init : Float -> ( Model, Cmd Msg )
+init flags =
+  let
+    activity =
+      "Initializing Pasta v" ++ String.fromFloat flags
+    
+  in
+  ( { initialModel | activity = activity }, fetchPhotos )
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+  activityChanges GotActivity
