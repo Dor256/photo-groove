@@ -1,4 +1,4 @@
-port module PhotoGroove exposing (Model, Photo, main, update, photoDecoder, Msg(..), initialModel, view)
+port module PhotoGroove exposing (Model, Photo, main, update, photoDecoder, Msg(..), initialModel, view, urlPrefix, Status(..))
 
 import Browser
 import Html exposing (..)
@@ -107,7 +107,7 @@ update msg model =
 
     GotPhotos (Ok photos) ->
         case photos of
-          first :: rest ->
+          _ :: _ ->
             applyFilters
               { model 
                   | status =
@@ -138,7 +138,7 @@ update msg model =
 applyFilters : Model -> ( Model, Cmd Msg )
 applyFilters model =
   case model.status of
-    Loaded photos selectedUrl ->
+    Loaded _ selectedUrl ->
       let
         filters =
           [ { name = "Hue", amount = toFloat model.hue / 11 }
@@ -155,7 +155,7 @@ applyFilters model =
     Loading ->
       ( model, Cmd.none )
 
-    Errored errorMessage ->
+    Errored _ ->
       ( model, Cmd.none )
 
 
@@ -306,5 +306,5 @@ init flags =
   ( { initialModel | activity = activity }, fetchPhotos )
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
   activityChanges GotActivity

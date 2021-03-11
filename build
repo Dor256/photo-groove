@@ -1,2 +1,2 @@
 #!/bin/zsh
-elm make src/PhotoGroove.elm --output app.js
+elm make src/PhotoFolders.elm --output app.js
