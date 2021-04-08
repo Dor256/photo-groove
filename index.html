@@ -13,22 +13,21 @@
         <script src="http://elm-in-action.com/pasta.js"></script>
         <script src="app.js"></script>
         <script>
-            const app = Elm.PhotoFolders.init({node: document.getElementById("app")});
-            // const app = Elm.PhotoGroove.init({
-            //     node: document.getElementById("app"),
-            //     flags: Pasta.version
-            // });
+            const app = Elm.Main.init({
+                flags: Pasta.version,
+                node: document.getElementById("app")
+            });
 
-            // app.ports.setFilters.subscribe((options) => {
-            //     requestAnimationFrame(() => {
-            //         Pasta.apply(document.getElementById("main-canvas"), options);
-            //     });
-            // });
+            app.ports.setFilters.subscribe((options) => {
+                requestAnimationFrame(() => {
+                    Pasta.apply(document.getElementById("main-canvas"), options);
+                });
+            });
 
-            // Pasta.addActivityListener((activity) => {
-            //     console.log('Sending activity to Elm', activity);
-            //     app.ports.activityChanges.send(activity);
-            // });
+            Pasta.addActivityListener((activity) => {
+                console.log('Sending activity to Elm', activity);
+                app.ports.activityChanges.send(activity);
+            });
         </script>
     </body>
 </html>

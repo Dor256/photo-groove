@@ -1,4 +1,4 @@
-port module PhotoGroove exposing (Model, Photo, main, update, photoDecoder, Msg(..), initialModel, view, urlPrefix, Status(..))
+port module PhotoGallery exposing (Model, Photo, main, update, photoDecoder, Msg(..), initialModel, view, urlPrefix, Status(..), init, subscriptions)
 
 import Browser
 import Html exposing (..)
@@ -194,8 +194,7 @@ view model =
   div [ class "content" ] <|
     case model.status of
         Loaded photos selectedUrl ->
-          [ h1 [] [ text "Photo Groove" ]
-          , button
+          [ button
               [ onClick ClickedSurpriseMe ]
               [ text "Surprise Me!" ]
           , div [ class "activity" ] [ text model.activity ]

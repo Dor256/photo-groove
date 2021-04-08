@@ -1,14 +1,12 @@
-module PhotoFolders exposing (..)
+module PhotoFolders exposing (Model, Msg, init, update, view)
 
-import Browser
 import Html exposing (..)
-import Html.Attributes exposing (class, src)
+import Html.Attributes exposing (class, src, href)
 import Html.Events exposing (onClick)
 import Http
 import Json.Decode as Decode exposing (Decoder, int, list, string)
 import Json.Decode.Pipeline exposing (required)
 import Dict exposing (Dict)
-import Html.Attributes exposing (target)
 
 type Folder =
     Folder
@@ -19,7 +17,7 @@ type Folder =
         }
 
 type alias Model =
-    { selectedPhotoUrl: Maybe String
+    { selectedPhotoUrl : Maybe String
     , photos : Dict String Photo
     , root : Folder
     }
@@ -31,9 +29,9 @@ initialModel =
     , root = Folder { name = "Loading...", photoUrls = [], subfolders = [], expanded = True }
     }
 
-init : () -> ( Model, Cmd Msg )
-init _ =
-    ( initialModel
+init : Maybe String -> ( Model, Cmd Msg )
+init selectedFilename =
+    ( { initialModel | selectedPhotoUrl = selectedFilename }
     , Http.get
         { url = "http://elm-in-action.com/folders/list"
         , expect = Http.expectJson GotInitialModel modelDecoder
@@ -97,7 +95,7 @@ update msg model =
             ( { model | selectedPhotoUrl = Just url }, Cmd.none )
         
         GotInitialModel (Ok newModel) ->
-            ( newModel, Cmd.none )
+            ( { newModel | selectedPhotoUrl = model.selectedPhotoUrl }, Cmd.none )
 
         GotInitialModel (Err _) ->
             ( model, Cmd.none )
@@ -117,7 +115,7 @@ appendIndex index path =
 
 renderPhoto : String -> Html Msg
 renderPhoto url =
-    div [ class "photo", onClick (ClickedPhoto url) ]
+    a [ href ("/photos/" ++ url), class "photo", onClick (ClickedPhoto url) ]
         [ text url ]
 
 renderSelectedPhoto : Photo -> Html Msg
@@ -184,21 +182,9 @@ view model =
     in
     div [ class "content" ]
         [ div [ class "folders" ] 
-            [ h1 [] [ text "Folders" ]
-            , renderFolder End model.root
-            ] 
+            [ renderFolder End model.root ] 
         , div [ class "selected-photo" ] [ selectedPhoto ] 
         ]
-
-main : Program () Model Msg
-main =
-    Browser.element
-        { init = init
-        , view = view
-        , update = update
-        , subscriptions = \_ -> Sub.none
-        }
-
 type alias JsonPhoto =
     { title : String
     , size : Int 

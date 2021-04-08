@@ -1,14 +1,14 @@
-module PhotoGrooveTests exposing (..)
+module PhotoGalleryTests exposing (..)
 
 import Expect exposing (Expectation)
-import Fuzz exposing (Fuzzer, int, list, string)
+import Fuzz exposing (Fuzzer, int, string)
 import Test exposing (..)
-import Json.Decode as Decode exposing (decodeValue)
+import Json.Decode exposing (decodeValue)
 import Json.Encode as Encode
-import PhotoGroove exposing (Model, Msg(..), Photo, initialModel, update, view, urlPrefix, Status(..))
-import Html.Attributes as Attr exposing (src)
+import PhotoGallery exposing (Model, Msg(..), Photo, initialModel, update, view, urlPrefix, Status(..))
+import Html.Attributes as Attr
 import Test.Html.Query as Query
-import Test.Html.Selector exposing (text, tag, attribute)
+import Test.Html.Selector exposing (tag, attribute)
 import Test.Html.Event as Event
 
 
@@ -20,7 +20,7 @@ decoderTest =
         , ( "size", Encode.int size )
         ]
             |> Encode.object
-            |> decodeValue PhotoGroove.photoDecoder
+            |> decodeValue PhotoGallery.photoDecoder
             |> Result.map .title
             |> Expect.equal (Ok "(untitled)")
 
